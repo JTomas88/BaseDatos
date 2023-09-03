@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="C:\lazarus\fpc\3.2.2\bin\i386-win32\fpc.exe" Date="1449426723"/>
+  <Params Value=" -MObjFPC -Scghi -O1 -gw3 -gl -l -vewnhibq &quot;-FiC:\Users\danig\Desktop\Programación Tomy\E J E R C I C I O S\Sección 9 Archivos\Nueva carpeta - copia\lib\i386-win32&quot; &quot;-FuC:\Users\danig\Desktop\Programación Tomy\E J E R C I C I O S\Sección 9 Archivos\Nueva carpeta - copia\&quot; &quot;-FUC:\Users\danig\Desktop\Programación Tomy\E J E R C I C I O S\Sección 9 Archivos\Nueva carpeta - copia\lib\i386-win32\&quot; &quot;-FEC:\Users\danig\Desktop\Programación Tomy\E J E R C I C I O S\Sección 9 Archivos\Nueva carpeta - copia\&quot; &quot;-oC:\Users\danig\Desktop\Programación Tomy\E J E R C I C I O S\Sección 9 Archivos\Nueva carpeta - copia\BaseDeDatosSimple.exe&quot; BaseDeDatosSimple.lpr"/>
+</CONFIG>
