@@ -8,8 +8,8 @@
         <Filename Value="BaseDeDatosSimple.lpr"/>
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="194"/>
-        <CursorPos X="22" Y="218"/>
+        <TopLine Value="446"/>
+        <CursorPos X="59" Y="460"/>
         <UsageCount Value="105"/>
         <Loaded Value="True"/>
       </Unit0>
@@ -157,7 +157,7 @@
       </Position29>
       <Position30>
         <Filename Value="BaseDeDatosSimple.lpr"/>
-        <Caret Line="218" Column="16" TopLine="198"/>
+        <Caret Line="218" Column="22" TopLine="194"/>
       </Position30>
     </JumpHistory>
     <RunParams>
@@ -166,15 +166,6 @@
     </RunParams>
   </ProjectSession>
   <Debugging>
-    <BreakPoints>
-      <Item>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="BaseDeDatosSimple.lpr"/>
-        <Line Value="339"/>
-      </Item>
-    </BreakPoints>
     <Watches>
       <Item>
         <Expression Value="registroPersona"/>

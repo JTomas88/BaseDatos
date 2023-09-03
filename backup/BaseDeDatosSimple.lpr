@@ -194,10 +194,8 @@ end;
 
 function existeDocumento (personaAcomprobar:TRegistroPersona; controlParametros: boolean):boolean;
 
- var docExiste: boolean;
-
 begin
-    repeat
+
 
       reset (archivoDataBase);
       while not eof (archivoDataBase) do begin
@@ -208,14 +206,13 @@ begin
       end;
 
 
-        if (controlParametros=false) then begin //validación OK
+      if (controlParametros=false) then begin //validación OK
           writeln ('No existe este documento');
           writeln;
-          docExiste:=false;
           EntradaPrompt();
-        end;
-        docExiste:= true
-      until docExiste =true;
+      end;
+      result:= true
+      CloseFile(archivoDataBase);
 end;
 
 function PesoNumero (pesoPersona:byte):boolean;
