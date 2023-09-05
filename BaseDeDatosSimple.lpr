@@ -65,7 +65,7 @@ var entradaEstandar, documentoAux: String;
     archivoDataBase, archivoTempBase: TBaseDeDatos;
     registroPersona, registroPersonaAux, personaLeida: TRegistroPersona;
     i, cantidadRegActivos, cantidadRegEliminados: int64;
-    pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,D: boolean;
+    pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,ElDocExiste,pruebaDoc: boolean;
 
   {Recibe un comando c de tipo TComando y retorna su equivalente en
   TComandoSistema. Esta operación simplemente verifica que el nombre
@@ -128,14 +128,14 @@ var entradaEstandar, documentoAux: String;
   los registros.}
   function stringEncabezado(): String;
   begin
-      result:= {Format(FORMAT_ID,[COLUMNA_ID])+'|'+}Format(FORMAT_DOCUMENTO,[COLUMNA_DOCUMENTO])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_NOMBRE])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_APELLIDO])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_EDAD])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_PESO]);
+      result:= Format(FORMAT_ID,[COLUMNA_ID])+'|'+Format(FORMAT_DOCUMENTO,[COLUMNA_DOCUMENTO])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_NOMBRE])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_APELLIDO])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_EDAD])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_PESO]);
   end;
 
   {Retorna una línea de texto formada por los datos del registro reg para que
   queden vistos en formato de columnas}
   function stringFilaRegistro(const reg: TRegistroPersona): String;
   begin
-      result:= //Format(FORMAT_ID,[IntToStr(reg.Id)])+'|'+
+      result:= Format(FORMAT_ID,[IntToStr(reg.Id)])+'|'+
                Format(FORMAT_DOCUMENTO,[reg.Documento])+'|'+
                Format(FORMAT_NOMBRE_APELLIDO,[reg.Nombre])+'|'+
                Format(FORMAT_NOMBRE_APELLIDO,[reg.Apellido])+'|'+
@@ -192,27 +192,24 @@ begin
 
 end;
 
-function existeDocumento (personaAcomprobar:TRegistroPersona; controlParametros: boolean):boolean;
+function existeDocumento (personaAcomprobar:TRegistroPersona):boolean;
 
+var  controlParametros: boolean;
 begin
-
-
       reset (archivoDataBase);
       while not eof (archivoDataBase) do begin
             read(archivoDataBase, personaAcomprobar);
+
             {compara el documento existente en la BD con el documento que introduce el usuario para modificar el registro
             Si coinciden, pruebaParametros lanza TRUE}
             controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[1].datoString)=0;
-      end;
 
-
-      if (controlParametros=false) then begin //validación OK
-          writeln ('No existe este documento');
-          writeln;
-          EntradaPrompt();
+            If controlParametros=true then begin
+                result:=true;
+                exit;
+            end;
+            result:=false;
       end;
-      result:= true
-      CloseFile(archivoDataBase);
 end;
 
 function PesoNumero (pesoPersona:byte):boolean;
@@ -236,15 +233,8 @@ begin
 
     reset (archivoDataBase);
 
-    {if (comprobarRegEliminados(personaActual)=true) then begin
-       writeln('PASA POR AQUI');
-    end;}
-
-    {writeln (stringEncabezado()); }
     while not eof (archivoDataBase) do begin
       read (archivoDataBase, personaActual);
-      //writeln (stringFilaRegistro(personaActual));
-      writeln;
       if (compareStr (personaActual.Documento, ObjCom.listaParametros.argumentos[1].datoString)=0) and (comprobarRegEliminados(personaActual)=true) then begin
         writeln ('Ya existe este numero de documento >> [',personaActual.Documento,' ',personaActual.Nombre,' ',personaActual.Apellido,']');
         validacionDocumento:=false;
@@ -293,7 +283,7 @@ begin
 end;
 
 
-function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPersona, edadPersona, PesoPersona:byte; ELIMINADOPERSONA:BOOLEAN): TRegistroPersona;
+function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPersona, edadPersona, PesoPersona:byte; eliminadoPersona:boolean): TRegistroPersona;
 
 begin
 
@@ -308,9 +298,9 @@ begin
   registroPersona.Apellido:=registroPersonaAux.Apellido;
   registroPersona.Edad:=registroPersonaAux.Edad;
   registroPersona.Peso:=registroPersonaAux.Peso;
+  registroPersona.Id:= registroPersona.Id + 1;
 
-  IF ELIMINADOPERSONA=FALSE THEN BEGIN
-
+  if eliminadoPersona = false then begin
 
     if ((pruebaParametros=true) and (pruebaEdad=true)) and ((pruebaPeso=true) and (pruebaDocumento=true)) then begin
       reset (archivoDataBase);
@@ -318,7 +308,6 @@ begin
       write (archivoDataBase, registroPersona);
       WRITELN ('ELIMINADO ', registroPersona.Eliminado);
       writeln ('Registro agregado correctamente');
-      writeln;
     end;
 
   end;
@@ -328,24 +317,61 @@ begin
 
 end;
 
-function ModificarReg (personaAmodificar:TREgistroPersona; var baseDatos:TBaseDeDatos): boolean;
+{function ModificarReg (personaAmodificar:TREgistroPersona; var baseDatos:TBaseDeDatos): boolean;
 var nuevoRegistro:TRegistroPersona;
-
+    ind: integer;
 begin
+         //reset (baseDatos);
+         //while not eof (baseDatos) do begin
+           //read (baseDatos, personaAmodificar);
+           pruebaDoc:=existeDocumento(personaAmodificar);
+           if (pruebaDoc) then begin
+              if (personaAmodificar.ID<0) or (personaAmodificar.Id>=FileSize(baseDatos)) then begin
+                 result:=false;
+              end else begin
+                for ind:= 0 to (Filesize(baseDatos) -1)do begin
+                  if ind <> personaAmodificar.id then begin
+                     seek (baseDatos, ind);
+                     read (baseDatos, personaAmodificar);
 
-        seek (baseDatos, 0);
+                     nuevoregistro.documento:=personaAmodificar.Documento;
+                     nuevoRegistro.Nombre:=personaAmodificar.Nombre;
+                     nuevoRegistro.Apellido:=personaAmodificar.Apellido;
+                     nuevoRegistro.Edad:=personaAmodificar.edad;
+                     nuevoRegistro.Peso:=personaAmodificar.Peso;
+                     nuevoRegistro.Id:=nuevoRegistro.Id;
 
-        nuevoregistro.documento:=personaAmodificar.Documento;
-        nuevoRegistro.Nombre:=personaAmodificar.Nombre;
-        nuevoRegistro.Apellido:=personaAmodificar.Apellido;
-        nuevoRegistro.Edad:=personaAmodificar.edad;
-        nuevoRegistro.Peso:=personaAmodificar.Peso;
+                     write (baseDatos,nuevoRegistro);
+                     writeln ('Registro ',nuevoregistro.Documento,' modificado');
+                     writeln;
+                  end;
+                   exit;
+                end;
+
+              end;
+            end;
+         //end;
+
+end; }
+
+function modificarRegistro (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos): boolean;
+var nuevoRegistro: TRegistroPersona;
+    existe:boolean;
+begin
+   existe:=ExisteDocumento(registroPersona);
+   while not eof (baseDatos) do begin
+     read (baseDatos, registroPersona);
+     if existe then begin
+        result:=true;
+     end else
+         result:=false;
 
 
-        write (baseDatos,nuevoRegistro);
-        writeln ('Registro ',nuevoregistro.Documento,' modificado');
-        writeln;
+     seek (baseDatos,0);
+     nuevoRegistro:=personaAmodificar;
 
+     write (baseDatos, nuevoRegistro)
+   end;
 
 end;
 
@@ -404,6 +430,12 @@ end;
 (*============================================================================*)
 begin
 
+  registroPersona.Documento:='';
+  registroPersona.Nombre:='';
+  registroPersona.Apellido:='';
+  registroPersona.Edad:=0;
+  registroPersona.Peso:=0;
+  registroPersona.Id:=0;
 
   {----Asignamos y creamos el archivo o lo abrimos si ya está creado----}
   AssignFile (archivoDataBase, BASEDEDATOS_NOMBRE_REAL);
@@ -418,11 +450,7 @@ begin
 
 repeat
 
-  registroPersona.Documento:='';
-  registroPersona.Nombre:='';
-  registroPersona.Apellido:='';
-  registroPersona.Edad:=0;
-  registroPersona.Peso:=0;
+
 
 
   {PROMPT + Lectura comando + lectura datos}
@@ -453,11 +481,42 @@ repeat
     MODIFICAR:begin
       reset (archivoDataBase);
 
+    repeat
+      pruebaParametros:=NumeroParametros(objCom);
+     if (pruebaParametros=false) then begin  //VALIDACION1 OK
+        writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
+        //validacionParametros:=false;
+        writeln;
+        EntradaPrompt();
+        registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+        registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+        registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+        registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+        registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+      end;
+     until pruebaParametros=true;
 
-      {Si los parametros NO son diferente a 5 (es decir, es igual a 5) y prueba parametros no es false
-      (es decir, es true) entonces llama a ModificarReg}
-      if ((NumeroParametros(objCom)) and (existeDocumento(registroPersonaAux, pruebaParametros))) then begin
-         ModificarReg(registroPersonaAux, archivoDataBase);
+
+    repeat
+     pruebaParametros:=NumeroParametros(objCom);
+     ElDocExiste:=existeDocumento(registroPersonaAux);
+     if (pruebaParametros=true) and (ElDocExiste=false) then begin //VALIDACION 2 OK
+          writeln ('El documento no existe');
+          //validacionParametros:=false;
+          writeln;
+          EntradaPrompt();
+          registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+          registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+          registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+          registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+          registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+       end;
+      until (pruebaParametros=true) and (ElDocExiste=true);          /////////////////////////////////////////////////////////////////
+
+
+      if  (pruebaParametros=true) and (ElDocExiste=true) then begin
+        {ModificarReg(registroPersonaAux, archivoDataBase);}
+        ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase)
       end;
 
 
