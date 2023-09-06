@@ -376,7 +376,6 @@ El resto es pasar los datos recogidos por la entrada estandar a la variable Nuev
 Escribimos el NuevoRegistro en el archivo y mostramos mensaje de confirmación al usuario.}
 function modificarRegistro (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos): boolean;
 var nuevoRegistro, registroValidado: TRegistroPersona;
-    existe:boolean;
 begin
    registroValidado:=validDocumento(registroPersona);
 
@@ -391,6 +390,62 @@ begin
      write (baseDatos, nuevoRegistro);
 
      writeln ('Registro modificado correctamente');
+
+     CloseFile (archivoDataBase);
+
+end;
+
+
+{>> buscarTodo: Procedimiento para realizar una busqueda de todos los registros
+en Base de Datos y mostrarlos por pantalla.
+Abre el archivo y muestra los formatos de tabla.
+Lee el archivo hasta el final y escribe, dentro del formato de fila, cada registro}
+procedure buscarTodo();
+
+begin
+
+  reset (archivoDataBase);
+
+  writeln (stringEncabezado()); // Encabezado de la tabla de datos.
+  writeln (stringSeparadorHorizontal());
+
+
+  {Se recorre todo el archivo y se imprimer por pantalla cada uno de
+  los registros.}
+  while not eof (archivoDataBase) do begin
+    read (archivoDataBase, registroPersona);
+    writeln (stringFilaRegistro(registroPersona));
+  end;
+  writeln;
+
+  if (FileSize(archivoDataBase)=0) then begin
+    writeln ('No hay registros encontrados')
+  end else if (FileSize(archivoDataBase)<>0) then begin
+    writeln ('Registros encontrados: ',FileSize(archivoDataBase));
+  end;
+
+end;
+
+
+procedure buscarPorDocumento (documentoLeido:string; var personaLeida:TRegistroPersona);
+
+var controlDocumento:boolean;
+
+begin
+
+  writeln (stringEncabezado()); // Encabezado de la tabla de datos.
+  writeln (stringSeparadorHorizontal());
+
+  reset (archivoDataBase);
+  while not eof (archivoDataBase) do begin
+    read (archivoDataBase, personaLeida);
+
+    controlDocumento:=compareStr(personaLeida.Documento, documentoLeido)=0;
+
+    if controlDocumento=true then begin
+      writeln (stringFilaRegistro(personaLeida));
+    end;
+  end;
 
 end;
 
@@ -419,29 +474,6 @@ begin
   end;
 end;
 
-{//TODO: pendiente de comprobar}
-{>> buscarTodo: Procedimiento para realizar una busqueda de todos los registros
-en Base de Datos y mostrarlos por pantalla.}
-procedure buscarTodo();
-
-begin
-
-  reset (archivoDataBase);
-
-  writeln (stringEncabezado()); // Encabezado de la tabla de datos.
-  writeln (stringSeparadorHorizontal());
-
-
-  {Se recorre todo el archivo y se imprimer por pantalla cada uno de
-  los registros.}
-  while not eof (archivoDataBase) do begin
-    read (archivoDataBase, registroPersona);
-    writeln (stringFilaRegistro(registroPersona));
-  end;
-
-  writeln;
-
-end;
 
 
 (*============================================================================*)
@@ -485,14 +517,50 @@ repeat
 
     NUEVO:begin
       NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,REGISTROPERSONA.ELIMINADO);
+      writeln;
     end;{FIN CASE "NUEVO"}
 
 
 
+    {Recibe 0 parámetros (para mostrar todos los registros) o 1 parámetro (documento, para
+    mostrar un documento en concreto.
+    Validaciones: que reciba 0 o un parámetro.
+                  que ingrese un documento que no exista o fue eliminado}
+    BUSCAR: begin
 
-    MODIFICAR:begin
+            while ObjCom.listaParametros.cantidad >1 do begin
+              writeln ('La cantidad de parametros es incorrecta: [] o [DOCUMENTO]');
+              writeln;
+              EntradaPrompt();
+              registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+              registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+              registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+              registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+              registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+              continue;
+            end;
+
+
+
+           if ObjCom.listaParametros.cantidad = 0 then begin
+             buscarTodo();
+           end;
+
+          writeln;
+
+           if ObjCom.listaParametros.cantidad =1 then begin
+             buscarPorDocumento (objCom.listaParametros.argumentos[1].datoString,registroPersona);
+             writeln;
+
+           end;
+
+     end; {FIN CASE BUSCAR}
+
+
+
+
+     MODIFICAR:begin
       reset (archivoDataBase); {abrimos el archivo}
-
 
       {Bloque repeat: Comprobaremos que el número de parámetros introducidos a través del comando
       MODIFICAR no sea <>5. Nos apoyamos en el función NumeroParametros.
@@ -511,6 +579,7 @@ repeat
           registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
           registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
           registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+          continue;
         end;
        until pruebaParametros=true;
 
@@ -534,23 +603,19 @@ repeat
             registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
             registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
             registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+            continue;
          end;
-        until (pruebaParametros=true) and (ElDocExiste=true);
+      until (pruebaParametros=true) and (ElDocExiste=true);
 
 
        {Si las validaciones de los parámetros y el documento son correctas, llama a la función
        que realiza la labor principal, "ModificarRegistro".}
        if (pruebaParametros=true) and (ElDocExiste=true) then begin
         ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase);
+        writeln;
       end;
 
-
     end; {FIN CASE MODIFICAR}
-
-
-
-
-
 
 
     {ELIMINAR: ingresar comando "-T" o -"D documento".
@@ -563,19 +628,6 @@ repeat
        registroPersona:= eliminarTodo();
 
      end;{FIN CASE ELIMINAR}
-
-
-
-
-
-
-     BUSCAR: begin
-        buscarTodo();
-     end; {FIN CASE BUSCAR}
-
-
-
-
 
 
   end; {FIN CASE PRINCIPAL}
