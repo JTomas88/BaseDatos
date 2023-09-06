@@ -192,9 +192,16 @@ begin
 
 end;
 
+
+{Recibe un registro de Tipo TPersona que será la persona que vayamos a comprobar (parámetro
+MODIFICAR) con los que ya existen en la BD.
+Si el documento comparado es igual (es decir, existe) entonces asignamos la variable booleana como true
+para devolverla fuera de la función.
+Si no existe el documento introducido dentro de la BD, devuelve False.}
 function existeDocumento (personaAcomprobar:TRegistroPersona):boolean;
 
 var  controlParametros: boolean;
+
 begin
       reset (archivoDataBase);
       while not eof (archivoDataBase) do begin
@@ -204,12 +211,42 @@ begin
             Si coinciden, pruebaParametros lanza TRUE}
             controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[1].datoString)=0;
 
-            If controlParametros=true then begin
+            if controlParametros=true then begin
                 result:=true;
                 exit;
             end;
             result:=false;
       end;
+
+end;
+
+
+
+{Esta función recibe un registro de Tipo TRegisttroPersona y devuelve uno igual.
+Lee el archivo hasta el final, comparando el documento introducido (con el comando
+MODIFICAR) con los que hay en la BD. Si coincide (es decir, si existe) devuelve
+el registro de la persona que ha coincidido.
+En caso contrario, no devuelve nada.}
+function validDocumento (personaAcomprobar:TRegistroPersona):TRegistroPersona;
+
+var  controlParametros: boolean;
+
+begin
+      reset (archivoDataBase);
+      while not eof (archivoDataBase) do begin
+            read(archivoDataBase, personaAcomprobar);
+
+            {compara el documento existente en la BD con el documento que introduce el usuario para modificar el registro
+            Si coinciden, pruebaParametros lanza TRUE}
+            controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[1].datoString)=0;
+
+            if controlParametros=true then begin
+                result:=personaAcomprobar;
+                exit;
+            end;
+
+      end;
+
 end;
 
 function PesoNumero (pesoPersona:byte):boolean;
@@ -227,6 +264,8 @@ begin
 
 end;
 
+{// TODO:  pendiente comprobar dentro del case NUEVO, para verificar que el documento
+introducido no exista ya.}
 function DocumentoRepetido (documentoPersona:string; personaActual:TRegistroPersona):boolean;
 var validacionDocumento:boolean;
 begin
@@ -250,7 +289,7 @@ begin
 
 end;
 
-
+{// TODO: pendiente comprobación en el case de ELIMINAR }
 function comprobarRegEliminados(var persona:TRegistroPersona): boolean;
 
 var validacionEliminado:boolean;
@@ -282,7 +321,15 @@ begin
   validacionEliminado:= false;
 end;
 
+{Recibe todos los parámetros del tipo TRegistroPersona y devuelve un registro de este tipo.
+Para su funcionamiento usamos las funciones creadas anteriormente donde validamos que edad
+y peso sean caracteres numéricos y que el documento introducido no exista ya en la BD.
+Primero se guardan en RegistroPersonaAux y luego se pasan a RegistroPersona.
+Si cumple todas las validaciones¡, se posiciona en la última posición libre del archivo
+y escribe lo que hayamos pasado.
+Finalmente, cierra el archivo.}
 
+{// TODO: falta comprobar EliminadoPersona}
 function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPersona, edadPersona, PesoPersona:byte; eliminadoPersona:boolean): TRegistroPersona;
 
 begin
@@ -317,68 +364,41 @@ begin
 
 end;
 
-{function ModificarReg (personaAmodificar:TREgistroPersona; var baseDatos:TBaseDeDatos): boolean;
-var nuevoRegistro:TRegistroPersona;
-    ind: integer;
-begin
-         //reset (baseDatos);
-         //while not eof (baseDatos) do begin
-           //read (baseDatos, personaAmodificar);
-           pruebaDoc:=existeDocumento(personaAmodificar);
-           if (pruebaDoc) then begin
-              if (personaAmodificar.ID<0) or (personaAmodificar.Id>=FileSize(baseDatos)) then begin
-                 result:=false;
-              end else begin
-                for ind:= 0 to (Filesize(baseDatos) -1)do begin
-                  if ind <> personaAmodificar.id then begin
-                     seek (baseDatos, ind);
-                     read (baseDatos, personaAmodificar);
 
-                     nuevoregistro.documento:=personaAmodificar.Documento;
-                     nuevoRegistro.Nombre:=personaAmodificar.Nombre;
-                     nuevoRegistro.Apellido:=personaAmodificar.Apellido;
-                     nuevoRegistro.Edad:=personaAmodificar.edad;
-                     nuevoRegistro.Peso:=personaAmodificar.Peso;
-                     nuevoRegistro.Id:=nuevoRegistro.Id;
-
-                     write (baseDatos,nuevoRegistro);
-                     writeln ('Registro ',nuevoregistro.Documento,' modificado');
-                     writeln;
-                  end;
-                   exit;
-                end;
-
-              end;
-            end;
-         //end;
-
-end; }
-
+{Recibe el documento introducido a través del parámetro MODIFICAR, y la persona a modificar
+del tipo TRegistroPersona. Recibe por referencia la base de datos y devuelve TRUE o FALSE.
+Como variables: para guardar el nuevoRegistro y para obtener los datos que nos devuelve la función
+"ValidDicumento" (que se pasan a RegistroValidado).
+Nos posicionamos dentro del archivo en el ID del registro que quieremos modificar, -1 porque las posiciones
+en el archivo empiezan en 0.
+nuevoRegistro.Id:=registroValidado.Id; - para dejar el mismo ID del registro que queremos modificar.
+El resto es pasar los datos recogidos por la entrada estandar a la variable NuevoRegistro.
+Escribimos el NuevoRegistro en el archivo y mostramos mensaje de confirmación al usuario.}
 function modificarRegistro (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos): boolean;
-var nuevoRegistro: TRegistroPersona;
+var nuevoRegistro, registroValidado: TRegistroPersona;
     existe:boolean;
 begin
-   existe:=ExisteDocumento(registroPersona);
-   while not eof (baseDatos) do begin
-     read (baseDatos, registroPersona);
-     if existe then begin
-        result:=true;
-     end else
-         result:=false;
+   registroValidado:=validDocumento(registroPersona);
 
+     seek (baseDatos, (registroValidado.Id) -1);
+     nuevoRegistro.Id:=registroValidado.Id;
+     nuevoRegistro.Documento:=registroPersonaAux.Documento;
+     nuevoRegistro.Nombre:=registroPersonaAux.Nombre;
+     nuevoRegistro.Apellido:=registroPersonaAux.Apellido;
+     nuevoRegistro.Edad:=registroPersonaAux.Edad;
+     nuevoRegistro.Peso:=registroPersonaAux.Peso;
 
-     seek (baseDatos,0);
-     nuevoRegistro:=personaAmodificar;
+     write (baseDatos, nuevoRegistro);
 
-     write (baseDatos, nuevoRegistro)
-   end;
+     writeln ('Registro modificado correctamente');
 
 end;
 
-{
- >> eliminarTodo Procedimiento para eliminar todos los registros del Archivo.
-No elimina como tal, marca el atributo Eliminado como True
-}
+
+
+{//TODO: pendiente de comprobar}
+{>> eliminarTodo Procedimiento para eliminar todos los registros del Archivo.
+No elimina como tal, marca el atributo Eliminado como True}
 function eliminarTodo(): TRegistroPersona;
   var personaEliminada: TRegistroPersona;
 begin
@@ -391,7 +411,7 @@ begin
 
     personaEliminada.Eliminado:=true;
 
-    // stringFilaRegistro da el formato de columnas para imprimir por pantalla.
+    {stringFilaRegistro da el formato de columnas para imprimir por pantalla.}
     writeln (stringFilaRegistro(personaEliminada));
     writeln ('REGISTRO ',personaEliminada.Nombre,' ', 'ELIMINADO ',personaEliminada.Eliminado);
     writeln;
@@ -399,7 +419,7 @@ begin
   end;
 end;
 
-
+{//TODO: pendiente de comprobar}
 {>> buscarTodo: Procedimiento para realizar una busqueda de todos los registros
 en Base de Datos y mostrarlos por pantalla.}
 procedure buscarTodo();
@@ -417,9 +437,8 @@ begin
   while not eof (archivoDataBase) do begin
     read (archivoDataBase, registroPersona);
     writeln (stringFilaRegistro(registroPersona));
-   // writeln ('REGISTRO ',registroPersona.Nombre,' ', 'ELIMINADO ',registroPersona.ELIMINADO);
-   // writeln;
   end;
+
   writeln;
 
 end;
@@ -450,14 +469,9 @@ begin
 
 repeat
 
-
-
-
   {PROMPT + Lectura comando + lectura datos}
   entradaPrompt();
   {------------------------------------------------------------------------}
-
-
 
   registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
   registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
@@ -469,8 +483,6 @@ repeat
 
   case sysCom of
 
-
-
     NUEVO:begin
       NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,REGISTROPERSONA.ELIMINADO);
     end;{FIN CASE "NUEVO"}
@@ -479,30 +491,19 @@ repeat
 
 
     MODIFICAR:begin
-      reset (archivoDataBase);
-
-    repeat
-      pruebaParametros:=NumeroParametros(objCom);
-     if (pruebaParametros=false) then begin  //VALIDACION1 OK
-        writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
-        //validacionParametros:=false;
-        writeln;
-        EntradaPrompt();
-        registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-        registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-        registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-        registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-        registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-      end;
-     until pruebaParametros=true;
+      reset (archivoDataBase); {abrimos el archivo}
 
 
-    repeat
-     pruebaParametros:=NumeroParametros(objCom);
-     ElDocExiste:=existeDocumento(registroPersonaAux);
-     if (pruebaParametros=true) and (ElDocExiste=false) then begin //VALIDACION 2 OK
-          writeln ('El documento no existe');
-          //validacionParametros:=false;
+      {Bloque repeat: Comprobaremos que el número de parámetros introducidos a través del comando
+      MODIFICAR no sea <>5. Nos apoyamos en el función NumeroParametros.
+      Si los parámetros no son exactamente 5 mostrará un mensaje de error y volverá a
+      PROMPT + Lectura comando + lectura datos.
+      Se repetirá hasta que los parámetros introducidos sean 5, es decir, hasta que
+      pruebaParámetros=true}
+      repeat
+        pruebaParametros:=NumeroParametros(objCom);
+       if (pruebaParametros=false) then begin
+          writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
           writeln;
           EntradaPrompt();
           registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
@@ -510,13 +511,37 @@ repeat
           registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
           registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
           registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-       end;
-      until (pruebaParametros=true) and (ElDocExiste=true);          /////////////////////////////////////////////////////////////////
+        end;
+       until pruebaParametros=true;
 
 
-      if  (pruebaParametros=true) and (ElDocExiste=true) then begin
-        {ModificarReg(registroPersonaAux, archivoDataBase);}
-        ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase)
+      {Bloque repeat: si los parámetros introducidos son exactamente 5, comprobará que el documento
+      introducido a través del comando MODIFICAR no exista en la BD.
+      El if hace las 2 verificaciones.
+      Para el documento: nos apoyamos en la función "existeDocumento" y se le pasa a la variable
+      "ElDocExiste. Si devuelve un false, devuelve mensaje de error y vuelve a mostrar
+      PROMPT + Lectura comando + lectura datos.
+      Se repetirá hasta que los parámetros=5, y el documento exista dentro de los que están en la BD.}
+      repeat
+       pruebaParametros:=NumeroParametros(objCom);
+       ElDocExiste:=existeDocumento(registroPersona);
+       if (pruebaParametros=true) and (ElDocExiste=false) then begin
+            writeln ('El documento no existe');
+            writeln;
+            EntradaPrompt();
+            registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+            registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+            registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+            registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+            registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+         end;
+        until (pruebaParametros=true) and (ElDocExiste=true);
+
+
+       {Si las validaciones de los parámetros y el documento son correctas, llama a la función
+       que realiza la labor principal, "ModificarRegistro".}
+       if (pruebaParametros=true) and (ElDocExiste=true) then begin
+        ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase);
       end;
 
 
@@ -532,8 +557,6 @@ repeat
      -Si ingresa "-T" --> se borra todo el archivo (sólo parametro -T
      -Si se ingresa "D documento se "oculta un registro en concreto,
          no se podrá buscar ni modificar. Si no se ingresan los 2 parametros vuelca error. Si todo es correcto, mensaje ok}
-
-
      ELIMINAR:begin
      {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
 
@@ -564,4 +587,3 @@ until syscom=SALIR;
 readln;
 end.
 
-{PRUEBA GITHUB}
