@@ -59,13 +59,14 @@ type
   TBaseDeDatos= file of TRegistroPersona;
 
 
-var entradaEstandar, documentoAux: String;
+var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
     sysCom: TComandosSistema;
     objCom: TComando;
     archivoDataBase, archivoTempBase: TBaseDeDatos;
     registroPersona, registroPersonaAux, personaLeida: TRegistroPersona;
     i, cantidadRegActivos, cantidadRegEliminados: int64;
-    pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,ElDocExiste,pruebaDoc: boolean;
+    pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,
+      ElDocExiste,pruebaDoc,compareEliminarT, compareEliminarD: boolean;
 
   {Recibe un comando c de tipo TComando y retorna su equivalente en
   TComandoSistema. Esta operación simplemente verifica que el nombre
@@ -219,6 +220,32 @@ begin
       end;
 
 end;
+
+
+function existeDocumentoAEliminar (personaAcomprobar:TRegistroPersona):boolean;
+
+var  controlParametros: boolean;
+
+begin
+      reset (archivoDataBase);
+      while not eof (archivoDataBase) do begin
+            read(archivoDataBase, personaAcomprobar);
+
+            {compara el documento existente en la BD con el documento que introduce el usuario para modificar el registro
+            Si coinciden, pruebaParametros lanza TRUE}
+            controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[2].datoString)=0;
+
+            if controlParametros=true then begin
+                result:=true;
+                exit;
+            end;
+            result:=false;
+      end;
+
+end;
+
+
+
 
 
 
@@ -472,6 +499,8 @@ begin
     writeln;
     result:= personaEliminada;
   end;
+
+  CloseFile (archivoDataBase);
 end;
 
 
@@ -487,6 +516,11 @@ begin
   registroPersona.Edad:=0;
   registroPersona.Peso:=0;
   registroPersona.Id:=0;
+
+  {se asignan las constantes de tipo string a variables ya que no funcionan usando
+  directamente las constantes dentro del case ELIMINAR}
+  valorEliminarD:=PARAMETRO_ELIMINAR_DOC;
+  valorEliminarT:=PARAMETRO_ELIMINAR_TODO;
 
   {----Asignamos y creamos el archivo o lo abrimos si ya está creado----}
   AssignFile (archivoDataBase, BASEDEDATOS_NOMBRE_REAL);
@@ -515,11 +549,16 @@ repeat
 
   case sysCom of
 
-    NUEVO:begin
+{--------------------------------------------------------------------------------------------------------------------------------------------}
+
+
+     NUEVO:begin
       NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,REGISTROPERSONA.ELIMINADO);
       writeln;
     end;{FIN CASE "NUEVO"}
 
+
+{--------------------------------------------------------------------------------------------------------------------------------------------}
 
 
     {Recibe 0 parámetros (para mostrar todos los registros) o 1 parámetro (documento, para
@@ -557,6 +596,7 @@ repeat
      end; {FIN CASE BUSCAR}
 
 
+{--------------------------------------------------------------------------------------------------------------------------------------------}
 
 
      MODIFICAR:begin
@@ -618,22 +658,73 @@ repeat
     end; {FIN CASE MODIFICAR}
 
 
+{--------------------------------------------------------------------------------------------------------------------------------------------}
+
     {ELIMINAR: ingresar comando "-T" o -"D documento".
      -Si ingresa "-T" --> se borra todo el archivo (sólo parametro -T
      -Si se ingresa "D documento se "oculta un registro en concreto,
-         no se podrá buscar ni modificar. Si no se ingresan los 2 parametros vuelca error. Si todo es correcto, mensaje ok}
+     no se podrá buscar ni modificar. Si no se ingresan los 2 parametros vuelca error. Si todo es correcto, mensaje ok
+     El comando eliminar recibe como primer valor el parámetro -D o -T, definidos en las constantes
+    PARAMETRO_ELIMINAR_DOC y PARAMETRO_ELIMINAR_TODO respectivamente. Puedes usar la
+    operación CompareStr para obtener el primer parámetro de este comando y compararlo con estas
+    constantes para ver cuál de ambas opciones fue ingresada, o incluso si no se corresponde con ninguna de
+    ellas.}
+
      ELIMINAR:begin
-     {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
 
-       registroPersona:= eliminarTodo();
+     compareEliminarD:=compareStr (valorEliminarD, objCom.listaParametros.argumentos[1].datoString)=0;  //TRUE SI COINCIDEN
+     compareEliminarT:=compareStr (valorEliminarT,objCom.listaParametros.argumentos[1].datoString)=0;
 
-     end;{FIN CASE ELIMINAR}
+      while  (ObjCom.listaParametros.cantidad=0) or (ObjCom.listaParametros.cantidad >2)  do begin
+        writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
+        writeln;
+        EntradaPrompt();
+        registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+        registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+        registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+        registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+        registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+        continue;
+      end;
 
+      if compareEliminarT=false then begin
+       if compareEliminarD=false then begin
+        writeln ('ERROR: El argumento no es correcto o faltan datos');
+       writeln;
+       EntradaPrompt();
+       registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+       registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+       registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+       registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+       registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+       continue;
+       end;
+      end;
+
+      {validación nº argumentos en comando ELIMINAR -T (no recibe ningún parámetro más}
+      if (compareEliminarT) and (ObjCom.listaParametros.cantidad>0) then begin
+         writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
+      end;
+
+      {validación ELIMINAR -D: recibe un nº de documento y ese documento existe.}
+      if ((ObjCom.listaParametros.cantidad>0) and (ObjCom.listaParametros.cantidad<=2)) and ((compareEliminarD) and (existeDocumentoAEliminar(registroPersona))) then begin
+       writeln('CORRECTO');
+      end;
+
+
+       {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
+
+       {registroPersona:= eliminarTodo();}
+
+
+
+    end;{FIN CASE ELIMINAR}
+{--------------------------------------------------------------------------------------------------------------------------------------------}
 
   end; {FIN CASE PRINCIPAL}
 
-
 until syscom=SALIR;
+
 
 
 readln;
