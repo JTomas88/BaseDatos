@@ -362,10 +362,16 @@ function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPe
 begin
 
 
-  pruebaParametros:=numeroParametros(objCom);
-  pruebaEdad:=EdadNumero(objCom.listaParametros.argumentos[5].datoNumerico);
-  pruebaPeso:=PesoNumero (objCom.listaParametros.argumentos[6].datoNumerico);
-  pruebaDocumento:=documentoRepetido(objCom.listaParametros.argumentos[2].datoString, registroPersonaAux);
+  {Llamamos a las funciones dentro del repeat}
+  {numeroParametros(objCom);
+  EdadNumero(objCom.listaParametros.argumentos[5].datoNumerico);
+  PesoNumero (objCom.listaParametros.argumentos[6].datoNumerico);
+  documentoRepetido(objCom.listaParametros.argumentos[2].datoString, registroPersonaAux); }
+
+
+
+
+
 
   registroPersona.Documento:=registroPersonaAux.Documento;
   registroPersona.Nombre:=registroPersonaAux.Nombre;
@@ -374,9 +380,9 @@ begin
   registroPersona.Peso:=registroPersonaAux.Peso;
   registroPersona.Id:= registroPersona.Id + 1;
 
-  if eliminadoPersona = false then begin
 
-    if ((pruebaParametros=true) and (pruebaEdad=true)) and ((pruebaPeso=true) and (pruebaDocumento=true)) then begin
+
+    if ((pruebaParametros=true) and (pruebaEdad=true)) and ((pruebaPeso=true) and (pruebaDocumento=true)) and  (eliminadoPersona = false) then begin
       reset (archivoDataBase);
       seek (archivoDataBase, FileSize(archivoDataBase));
       write (archivoDataBase, registroPersona);
@@ -384,7 +390,10 @@ begin
       writeln ('Registro agregado correctamente');
     end;
 
-  end;
+
+
+
+
 
 
   CloseFile (archivoDataBase);
@@ -553,9 +562,83 @@ repeat
 
 
      NUEVO:begin
+       reset (archivoDataBase); {abrimos el archivo}
+
+       repeat
+         pruebaParametros:=NumeroParametros(objCom);
+         if (pruebaParametros=false) then begin
+          writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
+          writeln;
+          EntradaPrompt();
+          registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+          registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+          registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+          registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+          registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+          continue;
+         end;
+        until pruebaParametros=true;
+
+        repeat
+         pruebaEdad:=EdadNumero(objCom.listaParametros.argumentos[4].datoNumerico);
+          if (pruebaEdad=false) then begin
+           writeln ('El parametro edad debe ser numerico******');
+           writeln;
+           EntradaPrompt();
+          registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+          registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+          registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+          registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+          registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+          continue;
+         end;
+        until pruebaEdad=true;
+
+        repeat
+         pruebaPeso:=PesoNumero (objCom.listaParametros.argumentos[5].datoNumerico);
+          if (pruebaPeso=false) then begin
+           writeln ('El parametro peso debe ser numerico******');
+           writeln;
+           EntradaPrompt();
+          registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+          registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+          registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+          registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+          registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+          continue;
+         end;
+        until pruebaPeso=true;
+
+
+       repeat
+         pruebaDocumento:=documentoRepetido(objCom.listaParametros.argumentos[2].datoString, registroPersonaAux);
+         if (pruebaDocumento=false) then begin
+           writeln ('El documento ya existe******');
+           writeln;
+           EntradaPrompt();
+           registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+           registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+           registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+           registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+           registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+           continue;
+         end;
+    until pruebaDocumento=true;
+
+
+
+
+
+
+
+
+
+
+
       NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,REGISTROPERSONA.ELIMINADO);
       writeln;
-    end;{FIN CASE "NUEVO"}
+
+     end;{FIN CASE "NUEVO"}
 
 
 {--------------------------------------------------------------------------------------------------------------------------------------------}
@@ -712,12 +795,7 @@ repeat
       end;
 
 
-
-
-
-
-
-     {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
+       {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
 
        {registroPersona:= eliminarTodo();}
 
