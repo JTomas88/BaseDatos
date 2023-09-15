@@ -378,7 +378,6 @@ begin
      nuevoRegistro.Apellido:=registroValidado.Apellido;
      nuevoRegistro.Edad:=registroValidado.Edad;
      nuevoRegistro.Peso:=registroValidado.Peso;
-     nuevoRegistro.Eliminado:=true;
      nuevoRegistro.Eliminado:=registroValidado.Eliminado; //aqui sigue llegando eliminado a false//
 
       writeln ('++++ COMPROBACION ELIMINADOS ++++');
@@ -399,18 +398,43 @@ begin
 end;
 
 
-{A través de Eliminar -D recibe un documento y pasa a la propiedad de Eliminado de ese registro
-de false a true}
-function RegFalseATrue (documentoPersona:string): TRegistroPersona;
+{***********************************
+A través de Eliminar -D recibe un documento y pasa a la propiedad de Eliminado de ese registro
+de false a true
+************************************}
+function RegFalseATrue (documentoPersona:string; var baseDatos: TBaseDeDatos): boolean;
+
+var personaAEliminar: TRegistroPersona;
 
 begin
-  reset (archivoDataBase); {abrimos el archivo}
 
-  if existeDocumentoAEliminar(registroPersona) then begin
+
+  if not existeDocumentoAEliminar (registroPersona) then begin
+    result:=false;
+    exit;
+  end;
+
+  {personaAEliminar.Id:=registroPersona.Id;
+  personaAEliminar.Documento:=registroPersona.Documento;
+  personaAEliminar.Nombre:=registroPersona.Nombre;
+  personaAEliminar.Apellido:=registroPersona.Apellido;
+  personaAEliminar.Edad:=registroPersona.Edad;
+  personaAEliminar.Peso:=registroPersona.Peso;
+  personaAEliminar.Eliminado:=registroPersona.Eliminado; }
+
+  reset (archivoDataBase); {abrimos el archivo}
+  seek (archivoDataBase, (personaAEliminar.Id) -1);
+  read (baseDatos, personaAEliminar);
+  personaAEliminar.eliminado:=true;
+  seek (archivoDataBase, (personaAEliminar.Id) -1);
+  write (baseDatos, personaAEliminar);
+
+
+  {if existeDocumentoAEliminar(registroPersona) then begin
     registroPersona.Eliminado:=true;
     modificarRegistroEliminar (objCom.listaParametros.argumentos[2].datoString, registroPersona,archivoDataBase);
     result:=registroPersona
-  end;
+  end; }
 end;
 
 
@@ -835,6 +859,7 @@ repeat
         continue;
       end;
 
+      //comprobar//
       if compareEliminarT=false then begin
        if compareEliminarD=false then begin
         writeln ('ERROR: El argumento no es correcto o faltan datos');
@@ -848,18 +873,44 @@ repeat
        continue;
        end;
       end;
+      //comprobar
 
       {validación nº argumentos en comando ELIMINAR -T (no recibe ningún parámetro más}
       if (compareEliminarT) and (ObjCom.listaParametros.cantidad>0) then begin
          writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
       end;
 
+
+
+
+      {Verifica que "ELIMINAR -D" recibe un numero de documento que ya exista en la base de datos}
+      if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
+       writeln ('No existe este documento para eliminar');
+       writeln;
+       continue;
+      end;
+
+
+      //FUNCIONA PERO PREGUNTAR SI ESTÁ BIEN PUESTO AQUÍ EL PROMPT//
+      if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
+       EntradaPrompt();
+       registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
+       registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+       registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+       registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+       registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+      end;
+
+
+
+
+
+
       {validación ELIMINAR -D: recibe un nº de documento y ese documento existe.}
       if ((ObjCom.listaParametros.cantidad>0) and (ObjCom.listaParametros.cantidad<=2)) and ((compareEliminarD) and (existeDocumentoAEliminar(registroPersona))) then begin
-       RegFalseATrue (objCom.listaParametros.argumentos[2].datoString);
+       RegFalseATrue (objCom.listaParametros.argumentos[2].datoString, archivoDataBase);
        writeln('ELIMINARCION CORRECTA');
        writeln;
-
       end;
 
 
