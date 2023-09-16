@@ -239,8 +239,11 @@ begin
             controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[2].datoString)=0;
 
             if controlParametros=true then begin
+              if personaAcomprobar.Eliminado=false then begin
                 result:=true;
                 exit;
+              end;
+
             end;
             result:=false;
       end;
@@ -547,7 +550,7 @@ begin
 
 
     if not registroPersona.Eliminado then begin;
-    writeln (stringFilaRegistro(registroPersona));
+       writeln (stringFilaRegistro(registroPersona));
     end;
   end;
 
@@ -844,84 +847,50 @@ repeat
 
       reset (archivoDataBase); {abrimos el archivo}
 
+     {Comparamos los strings para verificar si coincide con -T o -D y lo asignamos a una variable}
      compareEliminarD:=compareStr (valorEliminarD, objCom.listaParametros.argumentos[1].datoString)=0;  //TRUE SI COINCIDEN
      compareEliminarT:=compareStr (valorEliminarT,objCom.listaParametros.argumentos[1].datoString)=0;
 
-      while  (ObjCom.listaParametros.cantidad=0) or (ObjCom.listaParametros.cantidad >2)  do begin
-        writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
-        writeln;
-        EntradaPrompt();
-        registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-        registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-        registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-        registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-        registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-        continue;
-      end;
 
-      //comprobar//
-      if compareEliminarT=false then begin
-       if compareEliminarD=false then begin
-        writeln ('ERROR: El argumento no es correcto o faltan datos');
-       writeln;
-       EntradaPrompt();
-       registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-       registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-       registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-       registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-       registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-       continue;
+       {Verificamos que si no es ninguna de los 2 parametros obligatorios, salte error}
+       if not (compareEliminarT) then begin
+         if not (compareEliminarD) then begin
+              writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
+              writeln;
+              continue;
+           end;
+         end;
+
+
+       {Si es -D le indicamos que tiene que llevar asociado un numero de documento,
+       es decir, tiene que llevar otro parametro mas (2)}
+       if (compareEliminarD) then begin
+         if (ObjCom.listaParametros.cantidad<>2) then begin
+           writeln ('El comando -D debe continuar con un número de documento');
+           writeln;
+           continue;
+         end;
        end;
-      end;
-      //comprobar
 
-      {validación nº argumentos en comando ELIMINAR -T (no recibe ningún parámetro más}
-      if (compareEliminarT) and (ObjCom.listaParametros.cantidad>0) then begin
-         writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
-      end;
+       {Si es -D y el documento a eliminar ya existe y esta eliminado mostramos mensaje de error}
+       if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
+         writeln ('ERROR: No hay un registro con documento DOCUMENTO para eliminar.');
+         writeln;
+         continue;
+       end;
 
-
-
-
-      {Verifica que "ELIMINAR -D" recibe un numero de documento que ya exista en la base de datos}
-      if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
-       writeln ('No existe este documento para eliminar');
-       writeln;
-       continue;
-      end;
-
-
-      //FUNCIONA PERO PREGUNTAR SI ESTÁ BIEN PUESTO AQUÍ EL PROMPT//
-      if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
-       EntradaPrompt();
-       registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-       registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-       registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-       registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-       registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-      end;
-
-
-
-
-
-
-      {validación ELIMINAR -D: recibe un nº de documento y ese documento existe.}
+       {validación ELIMINAR -D: recibe un nº de documento y ese documento existe.}
       if ((ObjCom.listaParametros.cantidad>0) and (ObjCom.listaParametros.cantidad<=2)) and ((compareEliminarD) and (existeDocumentoAEliminar(registroPersona))) then begin
        RegFalseATrue (objCom.listaParametros.argumentos[2].datoString, archivoDataBase);
-       writeln('ELIMINARCION CORRECTA');
+       writeln('ELIMINACION CORRECTA');
        writeln;
       end;
-
-
-       {VErificar si está eliminado y se pueda sustituir por el mismo nº de documento}
-
-       {registroPersona:= eliminarTodo();}
 
 
 
     end;{FIN CASE ELIMINAR}
 {--------------------------------------------------------------------------------------------------------------------------------------------}
+
 
   end; {FIN CASE PRINCIPAL}
 
