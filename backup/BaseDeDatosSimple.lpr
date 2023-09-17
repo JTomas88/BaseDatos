@@ -59,36 +59,38 @@ type
   TBaseDeDatos= file of TRegistroPersona;
 
 
+{________________________________VARIABLES___________________________________}
 var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
     sysCom: TComandosSistema;
     objCom: TComando;
     archivoDataBase, archivoTempBase: TBaseDeDatos;
     registroPersona, registroPersonaAux, personaLeida: TRegistroPersona;
-    i, cantidadRegActivos, cantidadRegEliminados: int64;
+    i, cantidadRegEliminados: int64;
     pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,
       ElDocExiste,pruebaDoc,compareEliminarT, compareEliminarD: boolean;
+{____________________________________________________________________________}
 
-  {Recibe un comando c de tipo TComando y retorna su equivalente en
+
+
+{_______________________________FORWARDS_____________________________________}
+  function comprobarRegEliminados(var persona:TRegistroPersona): boolean; forward;
+  function modificarRegistro (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos):boolean ; forward;
+{____________________________________________________________________________}
+
+
+{Recibe un comando c de tipo TComando y retorna su equivalente en
   TComandoSistema. Esta operación simplemente verifica que el nombre
   del comando c sea igual a alguna de las constantes COMANDO definidas
   en este archivo. Concretamente si:
-
   * El nombre de c es igual a COMANDO_NUEVO_TEXTO retorna TComandosSistema.NUEVO
   * El nombre de c es igual a COMANDO_MODIFICAR_TEXTO retorna TComandosSistema.MODIFICAR
   * El nombre de c es igual a COMANDO_ELIMINAR_TEXTO retorna TComandosSistema.ELIMINAR
-  * El nombre de c es igual a COMANDO_BUSCAR_TEXTO retorna TComandosSistema.BUSCAR                              registroPersona
+  * El nombre de c es igual a COMANDO_BUSCAR_TEXTO retorna TComandosSistema.BUSCAR
   * El nombre de c es igual a COMANDO_ESTADOSIS_TEXTO retorna TComandosSistema.ESTADOSIS
   * El nombre de c es igual a COMANDO_OPTIMIZAR_TEXTO retorna TComandosSistema.OPTIMIZAR
   * El nombre de c es igual a COMANDO_SALIR_TEXTO retorna TComandosSistema.SALIR
 
   En cualquier otro caso retorna TComandosSistema.INDEF.}
-
-
-  function comprobarRegEliminados(var persona:TRegistroPersona): boolean; forward;
-  function modificarRegistro (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos):boolean ; forward;
-
-
-
   function comandoSistema(const c: TComando): TComandosSistema;
   begin
       if CompareText(nombreComando(c),COMANDO_NUEVO_TEXTO)=0 then
@@ -108,14 +110,7 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
       else
          result:= TComandosSistema.INDEF;
   end;
-
-  {Busca en el arhivo, un registro con el documento indicado y lo asigna a reg
-  retornando TRUE. Si no existe en el archivo un registro con el documento indicado
-  entonces retorna FALSE.}
-  function buscarRegistro(documento: String; var reg: TRegistroPersona; var archivo: TBaseDeDatos): boolean;
-  begin
-
-  end;
+{____________________________________________________________________________}
 
   {Retorna una línea de texto formada por 78 guiones}
   function stringSeparadorHorizontal(): String;
@@ -125,6 +120,7 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
       for i:=1 to 78 do
           result+= '-';
   end;
+{____________________________________________________________________________}
 
   {Retorna una línea de texto que forma el encabezado de la salida al imprimir
   los registros.}
@@ -132,6 +128,7 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
   begin
       result:= Format(FORMAT_ID,[COLUMNA_ID])+'|'+Format(FORMAT_DOCUMENTO,[COLUMNA_DOCUMENTO])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_NOMBRE])+'|'+Format(FORMAT_NOMBRE_APELLIDO,[COLUMNA_APELLIDO])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_EDAD])+'|'+Format(FORMAT_EDAD_PESO,[COLUMNA_PESO]);
   end;
+{____________________________________________________________________________}
 
   {Retorna una línea de texto formada por los datos del registro reg para que
   queden vistos en formato de columnas}
@@ -144,6 +141,8 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
                Format(FORMAT_EDAD_PESO,[Inttostr(reg.Edad)])+'|'+
                Format(FORMAT_EDAD_PESO,[Inttostr(reg.Peso)]);
   end;
+{____________________________________________________________________________}
+
 
 procedure EntradaPrompt();
 begin
@@ -154,6 +153,7 @@ begin
     sysCom:=comandoSistema(objCom);
 
 end;
+{____________________________________________________________________________}
 
 
 {Comprueba que la cantidad de parámetros introducidos sean 5}
@@ -168,7 +168,9 @@ begin
     end;
 
 end;
+{____________________________________________________________________________}
 
+{Comprueba que el parámetro recibido "Edad" sea de tipo numérico}
 function EdadNumero (edadPersona:byte):boolean;
 
 begin
@@ -180,9 +182,10 @@ begin
       end;
 
 end;
+{____________________________________________________________________________}
 
 
-
+{Comprueba que el parámetro recibido "Peso" sea de tipo numérico}
 function PesoNumero (pesoPersona:byte):boolean;
 
 begin
@@ -193,8 +196,8 @@ begin
         result:=true;
     end;
 
-
 end;
+{____________________________________________________________________________}
 
 
 {Recibe un registro de Tipo TPersona que será la persona que vayamos a comprobar (parámetro
@@ -223,8 +226,56 @@ begin
       end;
 
 end;
+{____________________________________________________________________________}
+
+{// TODO: pendiente comprobación en el case de ELIMINAR }
+function comprobarRegEliminados(var persona:TRegistroPersona): boolean;
+
+begin
+
+  reset (archivoDataBase);
+  while not eof (archivoDataBase) do begin
+      read (archivoDataBase, persona);
+       if (persona.Eliminado=true) then begin
+          result:= true;
+          exit;
+       end;
+  end; //while
+
+  result:= false;
+end;
+
+{____________________________________________________________________________}
 
 
+function ExisteDocumentoYEliminado(var persona:TRegistroPersona): boolean;
+
+var comparaDocumento: boolean;
+
+begin
+  reset (archivoDataBase);
+
+  while not eof (archivoDataBase) do begin
+      read (archivoDataBase, persona);
+       comparaDocumento:=compareStr(persona.Documento, objCom.listaParametros.argumentos[1].datoString)=0;
+       if (persona.Eliminado=false) and (comparaDocumento=true)  then begin
+          result:= true;
+          exit;
+       end;
+  end; //while
+
+  result:= false;
+end;
+
+
+
+
+
+
+
+
+
+{Para case ELIMINAR}
 function existeDocumentoAEliminar (personaAcomprobar:TRegistroPersona):boolean;
 
 var  controlParametros: boolean;
@@ -249,6 +300,7 @@ begin
       end;
 
 end;
+{____________________________________________________________________________}
 
 
 {Esta función recibe un registro de Tipo TRegistroPersona y devuelve uno igual.
@@ -274,6 +326,7 @@ begin
       end;
 
 end;
+{____________________________________________________________________________}
 
 
 function validDocumentoEliminar (personaAcomprobar:TRegistroPersona):TRegistroPersona;
@@ -297,8 +350,7 @@ begin
       end;
 
 end;
-
-
+{____________________________________________________________________________}
 
 
 
@@ -322,23 +374,10 @@ begin
     CloseFile (archivoDataBase);
 
 end;
+{____________________________________________________________________________}
 
-{// TODO: pendiente comprobación en el case de ELIMINAR }
-function comprobarRegEliminados(var persona:TRegistroPersona): boolean;
 
-begin
-
-  reset (archivoDataBase);
-  while not eof (archivoDataBase) do begin
-      read (archivoDataBase, persona);
-       if (persona.Eliminado=true) then begin
-          result:= true;
-          exit;
-       end;
-  end; //while
-
-  result:= false;
-end;
+{____________________________________________________________________________}
 
 
 {¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡SOLO VALIDO PARA ELIMINAR UN DOCUMENTO!!!!!!!!!!!!!!!!!}
@@ -375,12 +414,11 @@ begin
      CloseFile (archivoDataBase);
 
 end;
+{____________________________________________________________________________}
 
 
-{***********************************
-A través de Eliminar -D recibe un documento y pasa a la propiedad de Eliminado de ese registro
-de false a true
-************************************}
+{A través de Eliminar -D recibe un documento y pasa a la propiedad de Eliminado de ese registro
+de false a true}
 function RegFalseATrue (documentoPersona:string; var baseDatos: TBaseDeDatos): boolean;
 
 var personaAEliminar: TRegistroPersona;
@@ -401,16 +439,8 @@ begin
   seek (archivoDataBase, (personaAEliminar.Id) -1);
   write (baseDatos, personaAEliminar);
 
-
-  {if existeDocumentoAEliminar(registroPersona) then begin
-    registroPersona.Eliminado:=true;
-    modificarRegistroEliminar (objCom.listaParametros.argumentos[2].datoString, registroPersona,archivoDataBase);
-    result:=registroPersona
-  end; }
 end;
-
-
-
+{____________________________________________________________________________}
 
 
 
@@ -427,27 +457,25 @@ function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPe
 
 begin
 
-
   registroPersona.Documento:=registroPersonaAux.Documento;
   registroPersona.Nombre:=registroPersonaAux.Nombre;
   registroPersona.Apellido:=registroPersonaAux.Apellido;
   registroPersona.Edad:=registroPersonaAux.Edad;
   registroPersona.Peso:=registroPersonaAux.Peso;
   registroPersona.Id:= registroPersona.Id + 1;
+  registroPersona.Eliminado:=false;
 
 
-        reset (archivoDataBase);
-        seek (archivoDataBase, FileSize(archivoDataBase));
-        write (archivoDataBase, registroPersona);
-        WRITELN ('[[ELIMINADO ', registroPersona.Eliminado,']]');
-        writeln ('Registro agregado correctamente');
-        writeln;
+  reset (archivoDataBase);
+  seek (archivoDataBase, FileSize(archivoDataBase));
+  write (archivoDataBase, registroPersona);
+  writeln ('Registro agregado correctamente');
+  writeln;
 
-
-
- CloseFile (archivoDataBase);
+  CloseFile (archivoDataBase);
 
 end;
+{____________________________________________________________________________}
 
 
 
@@ -455,7 +483,7 @@ end;
 del tipo TRegistroPersona. Recibe por referencia la base de datos y devuelve TRUE o FALSE.
 Como variables: para guardar el nuevoRegistro y para obtener los datos que nos devuelve la función
 "ValidDicumento" (que se pasan a RegistroValidado).
-Nos posicionamos dentro del archivo en el ID del registro que quieremos modificar, -1 porque las posiciones          (objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase)
+Nos posicionamos dentro del archivo en el ID del registro que quieremos modificar, -1 porque las posiciones
 en el archivo empiezan en 0.
 nuevoRegistro.Id:=registroValidado.Id; - para dejar el mismo ID del registro que queremos modificar.
 El resto es pasar los datos recogidos por la entrada estandar a la variable NuevoRegistro.
@@ -477,13 +505,14 @@ begin
    nuevoRegistro.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
    nuevoregistro.Eliminado:=false;
 
-     write (baseDatos, nuevoRegistro);
+   write (baseDatos, nuevoRegistro);
 
-     writeln ('Registro modificado correctamente');
+   writeln ('Registro modificado correctamente');
 
-     CloseFile (archivoDataBase);
+   CloseFile (archivoDataBase);
 
 end;
+{____________________________________________________________________________}
 
 
 function modificarRegistroEliminado (documentoLeido:string; personaAmodificar:TRegistroPersona; var baseDatos: TBaseDeDatos): boolean;
@@ -494,25 +523,24 @@ begin
 
    registroValidado:=validDocumento(registroPersona);
 
-     seek (baseDatos, (registroValidado.Id) -1);
-     nuevoRegistro.Id:=registroValidado.Id;
-     nuevoRegistro.Documento:=registroPersona.Documento;
-     nuevoRegistro.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-     nuevoRegistro.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-     nuevoRegistro.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-     nuevoRegistro.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-     nuevoRegistro.Eliminado:= false;
+   seek (baseDatos, (registroValidado.Id) -1);
+   nuevoRegistro.Id:=registroValidado.Id;
+   nuevoRegistro.Documento:=registroPersona.Documento;
+   nuevoRegistro.Nombre:=objCom.listaParametros.argumentos[2].datoString;
+   nuevoRegistro.Apellido:=objCom.listaParametros.argumentos[3].datoString;
+   nuevoRegistro.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
+   nuevoRegistro.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
+   nuevoRegistro.Eliminado:= false;
 
 
-     write (baseDatos, nuevoRegistro);
+   write (baseDatos, nuevoRegistro);
 
-     writeln ('Registro creado correctamente');
+   writeln ('Registro creado correctamente');
 
-     CloseFile (archivoDataBase);
+   CloseFile (archivoDataBase);
 
 end;
-
-
+{____________________________________________________________________________}
 
 
 {>> buscarTodo: Procedimiento para realizar una busqueda de todos los registros
@@ -539,12 +567,12 @@ begin
     if not registroPersona.Eliminado=true then begin;
        writeln (stringFilaRegistro(registroPersona));
     end;
-    for i:=0 to (FileSize(archivoDataBase)) do begin
+
         if registroPersona.Eliminado=false then begin
            contadorRegistros:= contadorRegistros+1;
         end;
-    end;
-  end;
+
+  end;{while}
 
   writeln;
 
@@ -552,19 +580,16 @@ begin
     writeln ('No hay registros encontrados')
   end;
 
-
   writeln ('Registros encontrados: ',contadorRegistros);
 
 end;
-
+{____________________________________________________________________________}
 
 procedure buscarPorDocumento (documentoLeido:string; var personaLeida:TRegistroPersona);
 
 var controlDocumento:boolean;
 
 begin
-
-
 
   reset (archivoDataBase);
   while not eof (archivoDataBase) do begin
@@ -581,10 +606,10 @@ begin
   end;
 
 end;
+{____________________________________________________________________________}
 
 
 
-{//TODO: pendiente de comprobar}
 {>> eliminarTodo Procedimiento para eliminar todos los registros del Archivo.
 No elimina como tal, marca el atributo Eliminado como True}
 function eliminarTodo(): TRegistroPersona;
@@ -608,7 +633,44 @@ begin
 
   CloseFile (archivoDataBase);
 end;
+{____________________________________________________________________________}
 
+function contarActivos(): byte;
+
+var i, cantidadRegActivos: byte;
+
+begin
+  cantidadRegActivos:=0;
+  reset (archivoDataBase);
+
+  while not eof (archivoDataBase) do begin
+    read (archivoDataBase, registroPersona);
+    if registroPersona.Eliminado=false then begin
+      cantidadRegActivos:=cantidadRegActivos+1;
+      result:=cantidadRegActivos;
+    end;
+  end;
+
+end;
+
+
+function contarEliminados(): byte;
+
+var i, cantidadRegEliminados: byte;
+
+begin
+  cantidadRegEliminados:=0;
+  reset (archivoDataBase);
+
+  while not eof (archivoDataBase) do begin
+    read (archivoDataBase, registroPersona);
+    if registroPersona.Eliminado=true then begin
+      cantidadRegEliminados:=cantidadRegEliminados+1;
+      result:=cantidadRegEliminados;
+    end;
+  end;
+
+end;
 
 
 (*============================================================================*)
@@ -667,7 +729,7 @@ repeat
          Con el continue sale del bucle}
          pruebaParametros:=NumeroParametros(objCom);
          if (pruebaParametros=false) then begin
-          writeln ('******CASE NUEVO ***** ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
+          writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
           writeln;
           continue;
           end;
@@ -677,7 +739,7 @@ repeat
          Con el continue sale del bucle}
          pruebaEdad:=EdadNumero(objCom.listaParametros.argumentos[4].datoNumerico);
           if (pruebaEdad=false) then begin
-           writeln ('**** ERROR CASE ****** El parametro edad debe ser numerico******');
+           writeln ('El parametro edad debe ser numerico******');
            writeln;
            continue;
           end;
@@ -687,7 +749,7 @@ repeat
          Con el continue sale del bucle}
          pruebaPeso:=PesoNumero (objCom.listaParametros.argumentos[5].datoNumerico);
           if (pruebaPeso=false) then begin
-           writeln ('***ERROR CASE*****El parametro peso debe ser numerico******');
+           writeln ('El parametro peso debe ser numerico******');
            writeln;
           continue;
          end;
@@ -695,9 +757,9 @@ repeat
          {Comprueba que el documento introducido no esté ya guardado. . Se asocia la función a la variable booleana pruebaDocumento.
          Si esto es false etonces lanza mensaje de error.
          Con el continue sale del bucle}
-         pruebaDocumento:=documentoRepetido(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux);
+         pruebaDocumento:=existeDocumento(registroPersonaAux);
          if (pruebaDocumento=false) then begin
-            if (comprobarRegEliminados(registroPersonaAux)=false) then begin
+            if (comprobarRegEliminados(registroPersonaAux)=true) then begin
                  writeln ('Ya existe este numero de documento >> [',registroPersona.Documento,' ',registroPersona.Nombre,' ',registroPersona.Apellido,']');
                  writeln;
                  continue;
@@ -707,7 +769,7 @@ repeat
 
 
         {Si todas las validaciones se cumplen entones llama a la función NuevoReg que es la que permitirá guardar el registro.}
-        if (pruebaParametros=true) and (pruebaEdad=true) and (PruebaPeso=true) and (pruebaDocumento=true) then begin
+        if (pruebaParametros=true) and (pruebaEdad=true) and (PruebaPeso=true) and (pruebaDocumento=FALSE) then begin
           NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,registroPersona.Eliminado);
           continue;
         end;
@@ -720,8 +782,6 @@ repeat
 
 
     end;{FIN CASE "NUEVO"}
-
-
 {--------------------------------------------------------------------------------------------------------------------------------------------}
 
 
@@ -751,7 +811,6 @@ repeat
 
           writeln;
 
-
            if ObjCom.listaParametros.cantidad =1 then begin
              buscarPorDocumento (objCom.listaParametros.argumentos[1].datoString,registroPersona);
              writeln;
@@ -759,8 +818,6 @@ repeat
            end;
 
      end; {FIN CASE BUSCAR}
-
-
 {--------------------------------------------------------------------------------------------------------------------------------------------}
 
 
@@ -805,28 +862,11 @@ repeat
        end;
 
        {Verifica si el documento que vamos a eliminar está activo (false) o inactivo (true)}
-       if comprobarRegEliminados(registroPersonaAux) then begin
+       if ExisteDocumentoYEliminado(registroPersonaAux)=false  then begin
          writeln ('El documento a modificar esta INACTIVO');
          writeln;
          continue;
        end;
-
-
-
-
-
-
-
-
-
-
-
-       {validDocumento(registroPersona); /////////////////////////////////////comprobarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr///////////////////////
-       if (comprobarRegEliminados(registroPersonaAux) = true)then begin
-        writeln ('No existe un registro con documento DOCUMENTO para modificar.');
-        writeln;
-        continue;
-       end;}
 
 
        ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase);
@@ -834,8 +874,6 @@ repeat
 
 
     end; {FIN CASE MODIFICAR}
-
-
 {--------------------------------------------------------------------------------------------------------------------------------------------}
 
       {ELIMINAR: ingresar comando "-T" o -"D documento".
@@ -900,6 +938,22 @@ repeat
 
 
     end;{FIN CASE ELIMINAR}
+{--------------------------------------------------------------------------------------------------------------------------------------------}
+
+
+     ESTADOSIS:begin
+
+       if ObjCom.listaParametros.cantidad<>0 then begin
+        writeln ('La cantidad de parametros es incorrecta []');
+        writeln;
+        continue;
+       end;
+
+          writeln ('Registros Totales: ',FileSize(archivoDataBase),' / Cantidad de registros activos: ',contarActivos(),
+                  ' / Cantidad de registros eliminados: ',contarEliminados());
+
+
+     end; {fin comando "ESTADOSIS"}
 {--------------------------------------------------------------------------------------------------------------------------------------------}
 
 
