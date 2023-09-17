@@ -251,11 +251,7 @@ begin
 end;
 
 
-
-
-
-
-{Esta función recibe un registro de Tipo TRegisttroPersona y devuelve uno igual.
+{Esta función recibe un registro de Tipo TRegistroPersona y devuelve uno igual.
 Lee el archivo hasta el final, comparando el documento introducido (con el comando
 MODIFICAR) con los que hay en la BD. Si coincide (es decir, si existe) devuelve
 el registro de la persona que ha coincidido.
@@ -268,16 +264,13 @@ begin
       reset (archivoDataBase);
       while not eof (archivoDataBase) do begin
             read(archivoDataBase, personaAcomprobar);
-
             {compara el documento existente en la BD con el documento que introduce el usuario para modificar el registro
             Si coinciden, pruebaParametros lanza TRUE}
             controlParametros:=compareStr(personaAcomprobar.Documento, objCom.listaParametros.argumentos[1].datoString)=0;
-
             if controlParametros=true then begin
                 result:=personaAcomprobar;
                 exit;
             end;
-
       end;
 
 end;
@@ -319,7 +312,6 @@ begin
     while not eof (archivoDataBase) do begin
       read (archivoDataBase, personaActual);
       if (compareStr (personaActual.Documento, ObjCom.listaParametros.argumentos[1].datoString)=0) then begin
-
         result:=false;
         exit;
       end;//if
@@ -339,12 +331,11 @@ begin
   reset (archivoDataBase);
   while not eof (archivoDataBase) do begin
       read (archivoDataBase, persona);
-       if (persona.Eliminado=true) and (compareStr (persona.Documento, ObjCom.listaParametros.argumentos[1].datoString)=0) then begin
+       if (persona.Eliminado=true) then begin
           result:= true;
           exit;
        end;
   end; //while
-
 
   result:= false;
 end;
@@ -479,12 +470,12 @@ begin
 
    seek (baseDatos, (registroValidado.Id) -1);
    nuevoRegistro.Id:=registroValidado.Id;
-   nuevoRegistro.Documento:=registroPersona.Documento;
+   nuevoRegistro.Documento:=objCom.listaParametros.argumentos[1].datoString;
    nuevoRegistro.Nombre:=objCom.listaParametros.argumentos[2].datoString;
    nuevoRegistro.Apellido:=objCom.listaParametros.argumentos[3].datoString;
    nuevoRegistro.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
    nuevoRegistro.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-
+   nuevoregistro.Eliminado:=false;
 
      write (baseDatos, nuevoRegistro);
 
@@ -530,10 +521,12 @@ Abre el archivo y muestra los formatos de tabla.
 Lee el archivo hasta el final y escribe, dentro del formato de fila, cada registro}
 procedure buscarTodo();
 
+var i, contadorRegistros:byte;
+
 begin
 
   reset (archivoDataBase);
-
+  contadorRegistros:=0;
   writeln (stringEncabezado()); // Encabezado de la tabla de datos.
   writeln (stringSeparadorHorizontal());
 
@@ -543,29 +536,24 @@ begin
   while not eof (archivoDataBase) do begin
     read (archivoDataBase, registroPersona);
 
-
-      writeln ('++++ COMPROBACION ELIMINADOS ++++');
-      writeln ('DOCUMENTO ',registroPersona.Documento);
-      writeln ('NOMBRE ',registroPersona.Nombre);
-      writeln ('APELLIDO ',registroPersona.Apellido);
-      writeln ('EDAD ',registroPersona.Edad);
-      writeln ('PESO ',registroPersona.Peso);
-      writeln ('ELIMINADO ',registroPersona.Eliminado);
-      writeln;
-
-
-    if not registroPersona.Eliminado then begin;
+    if not registroPersona.Eliminado=true then begin;
        writeln (stringFilaRegistro(registroPersona));
     end;
+
+        if registroPersona.Eliminado=false then begin
+           contadorRegistros:= contadorRegistros+1;
+        end;
+
   end;
 
   writeln;
 
   if (FileSize(archivoDataBase)=0) then begin
     writeln ('No hay registros encontrados')
-  end else if (FileSize(archivoDataBase)<>0) then begin
-    writeln ('Registros encontrados: ',FileSize(archivoDataBase));
   end;
+
+
+  writeln ('Registros encontrados: ',contadorRegistros);
 
 end;
 
@@ -576,17 +564,19 @@ var controlDocumento:boolean;
 
 begin
 
-  writeln (stringEncabezado()); // Encabezado de la tabla de datos.
-  writeln (stringSeparadorHorizontal());
+
 
   reset (archivoDataBase);
   while not eof (archivoDataBase) do begin
     read (archivoDataBase, personaLeida);
 
     controlDocumento:=compareStr(personaLeida.Documento, documentoLeido)=0;
-
-    if controlDocumento=true then begin
-      writeln (stringFilaRegistro(personaLeida));
+    if not (registroPersona.Eliminado=true) and (controlDocumento=true) then begin
+       writeln (stringEncabezado()); // Encabezado de la tabla de datos.
+       writeln (stringSeparadorHorizontal());
+       writeln (stringFilaRegistro(registroPersona));
+    end else if (registroPersona.Eliminado=true) and (controlDocumento=true)then begin
+      writeln ('No existe un registro con DOCUMENTO ',personaLeida.Documento);
     end;
   end;
 
@@ -761,6 +751,7 @@ repeat
 
           writeln;
 
+
            if ObjCom.listaParametros.cantidad =1 then begin
              buscarPorDocumento (objCom.listaParametros.argumentos[1].datoString,registroPersona);
              writeln;
@@ -782,66 +773,64 @@ repeat
       PROMPT + Lectura comando + lectura datos.
       Se repetirá hasta que los parámetros introducidos sean 5, es decir, hasta que
       pruebaParámetros=true}
-      repeat
-        pruebaParametros:=NumeroParametros(objCom);
+       pruebaParametros:=NumeroParametros(objCom);
        if (pruebaParametros=false) then begin
           writeln ('ERROR: Cantidad de parametros incorrecta: [DOCUMENTO, NOMBRE, APELLIDO, EDAD, PESO]');
           writeln;
-          EntradaPrompt();
-          registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-          registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-          registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-          registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-          registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
           continue;
         end;
-       until pruebaParametros=true;
 
 
-       if (comprobarRegEliminados(registroPersonaAux) = true)then begin
-        writeln ('No existe un registro con documento DOCUMENTO para modificar.');
-        writeln;
-        continue;
+       {Verifica que el parametro EDAD reciba un dato numérico}
+       pruebaEdad:=EdadNumero(objCom.listaParametros.argumentos[4].datoNumerico);
+       if (pruebaEdad=false) then begin
+         writeln ('**** ERROR CASE ****** El parametro edad debe ser numerico******');
+         writeln;
+         continue;
+       end;
+
+       {Verifica que el parametro PESO reciba un dato numérico}
+       pruebaPeso:=PesoNumero (objCom.listaParametros.argumentos[5].datoNumerico);
+       if (pruebaPeso=false) then begin
+         writeln ('***ERROR CASE*****El parametro peso debe ser numerico******');
+         writeln;
+         continue;
+       end;
+
+       {Verifica si el documento que vamos a eliminar existe}
+       if not existeDocumento (registroPersonaAux) then begin
+         writeln ('El documento a modificar no existe');
+         writeln;
+         continue;
+       end;
+
+       {Verifica si el documento que vamos a eliminar está activo (false) o inactivo (true)}
+       if comprobarRegEliminados(registroPersonaAux) then begin
+         writeln ('El documento a modificar esta INACTIVO');
+         writeln;
+         continue;
        end;
 
 
 
-      {Bloque repeat: si los parámetros introducidos son exactamente 5, comprobará que el documento
-      introducido a través del comando MODIFICAR no exista en la BD.
-      El if hace las 2 verificaciones.
-      Para el documento: nos apoyamos en la función "existeDocumento" y se le pasa a la variable
-      "ElDocExiste. Si devuelve un false, devuelve mensaje de error y vuelve a mostrar
-      PROMPT + Lectura comando + lectura datos.
-      Se repetirá hasta que los parámetros=5, y el documento exista dentro de los que están en la BD.}
-      {repeat
-       pruebaParametros:=NumeroParametros(objCom);
-       ElDocExiste:=existeDocumento(registroPersona);
-       if ((pruebaParametros=true) and (ElDocExiste=false)) and ((comprobarRegEliminados(registroPersonaAux) = false)) then begin
-            writeln ('El documento no existe');
-            writeln;
-            EntradaPrompt();
-            registroPersonaAux.documento:=objCom.listaParametros.argumentos[1].datoString;
-            registroPersonaAux.Nombre:=objCom.listaParametros.argumentos[2].datoString;
-            registroPersonaAux.Apellido:=objCom.listaParametros.argumentos[3].datoString;
-            registroPersonaAux.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
-            registroPersonaAux.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-            continue;
-         end;
-      until (pruebaParametros=true) and (ElDocExiste=true);}
-
-      {if (pruebaParametros=true) and (ElDocExiste=false) and (registroPersonaAux.Eliminado=true) then begin
-          writeln ('El documento no ESTA ACTIVO');
-            writeln;
-            continue;
-         end; }
 
 
 
 
-       {Si las validaciones de los parámetros y el documento son correctas, llama a la función
-       que realiza la labor principal, "ModificarRegistro".}
-       ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase);
+
+
+
+
+       {validDocumento(registroPersona); /////////////////////////////////////comprobarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr///////////////////////
+       if (comprobarRegEliminados(registroPersonaAux) = true)then begin
+        writeln ('No existe un registro con documento DOCUMENTO para modificar.');
         writeln;
+        continue;
+       end;}
+
+
+       ModificarRegistro(objCom.listaParametros.argumentos[1].datoString, registroPersonaAux,archivoDataBase);
+       writeln;
 
 
     end; {FIN CASE MODIFICAR}
@@ -867,22 +856,28 @@ repeat
      compareEliminarD:=compareStr (valorEliminarD, objCom.listaParametros.argumentos[1].datoString)=0;  //TRUE SI COINCIDEN
      compareEliminarT:=compareStr (valorEliminarT,objCom.listaParametros.argumentos[1].datoString)=0;
 
+       if (ObjCom.listaParametros.cantidad=0) or (ObjCom.listaParametros.cantidad>2) then begin
+          writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
+          writeln;
+          continue;
+       end;
 
-       {Verificamos que si no es ninguna de los 2 parametros obligatorios, salte error}
+       {Verifica que recibe -D o -T}
        if not (compareEliminarT) then begin
          if not (compareEliminarD) then begin
-              writeln ('ERROR: Cantidad de parametros incorrecta: [-T] o [-D,DOCUMENTO]');
+              writeln ('ERROR: El argumento no es correcto o faltan datos');
               writeln;
               continue;
            end;
          end;
 
 
+
        {Si es -D le indicamos que tiene que llevar asociado un numero de documento,
        es decir, tiene que llevar otro parametro mas (2)}
        if (compareEliminarD) then begin
          if (ObjCom.listaParametros.cantidad<>2) then begin
-           writeln ('El comando -D debe continuar con un número de documento');
+           writeln ('ERROR: Cantidad de parametros incorrecta: [-D,DOCUMENTO]');
            writeln;
            continue;
          end;
@@ -890,7 +885,7 @@ repeat
 
        {Si es -D y el documento a eliminar ya existe y esta eliminado mostramos mensaje de error}
        if (compareEliminarD) and (existeDocumentoAEliminar(registroPersona)=false) then begin
-         writeln ('ERROR: No hay un registro con documento DOCUMENTO para eliminar.');
+         writeln ('ERROR: No hay un registro con documento ',objCom.listaParametros.argumentos[2].datoString,' para eliminar.');
          writeln;
          continue;
        end;

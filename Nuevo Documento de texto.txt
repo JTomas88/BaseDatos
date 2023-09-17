@@ -1,0 +1,23 @@
+COMPROBACIONES:
+
+-NUEVO
+  Control del número de parámetros recibidos: ok
+  Control de registros (por documento) repetidos: ok
+  Control de edad, registro numérico: ok
+  Control de peso, registro numérico: ok
+
+-MODIFICAR
+  Control del número de parámetros recibidos: ok
+  Control de edad, registro numérico: NO OK -- OK
+  Control de peso, registro numérico: NO OK -- OK
+  Modificar registro que exista: NO OK
+  Modificar registro que esté activo: -
+  Modificar registro que exista y esté activo: -
+
+-ELIMINAR
+  Controla que recibe 1 o 2 parámetros: ok
+  Contola que uno de los 2 parámetros que recibe sea -D o -T: NO OK
+  Si es -D, controla que reciba un número de documento que exista en la base de datos y esté activo: OK
+  Controla que reciba -D/-T: Ok
+  Controla que el documento que recibe exista y esté activo: ok
+
