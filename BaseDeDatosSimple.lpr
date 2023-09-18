@@ -67,7 +67,7 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
     registroPersona, registroPersonaAux, personaLeida: TRegistroPersona;
     i, cantidadRegEliminados: int64;
     pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,
-      ElDocExiste,pruebaDoc,compareEliminarT, compareEliminarD: boolean;
+      ElDocExiste,pruebaDoc,compareEliminarT, compareEliminarD, primerRegistro: boolean;
 {____________________________________________________________________________}
 
 
@@ -222,8 +222,9 @@ begin
                 result:=true;
                 exit;
             end;
-            result:=false;
       end;
+
+      result:=false;
 
 end;
 {____________________________________________________________________________}
@@ -311,7 +312,7 @@ En caso contrario, no devuelve nada.}
 function validDocumento (personaAcomprobar:TRegistroPersona):TRegistroPersona;
 
 var  controlParametros: boolean;
-
+     personaRespuesta: TRegistroPersona;
 begin
       reset (archivoDataBase);
       while not eof (archivoDataBase) do begin
@@ -324,6 +325,7 @@ begin
                 exit;
             end;
       end;
+      result:=personaRespuesta;
 
 end;
 {____________________________________________________________________________}
@@ -398,14 +400,6 @@ begin
      nuevoRegistro.Peso:=registroValidado.Peso;
      nuevoRegistro.Eliminado:=registroValidado.Eliminado; //aqui sigue llegando eliminado a false//
 
-      writeln ('++++ COMPROBACION ELIMINADOS ++++');
-      writeln ('DOCUMENTO ',nuevoRegistro.Documento);
-      writeln ('NOMBRE ',nuevoRegistro.Nombre);
-      writeln ('APELLIDO ',nuevoRegistro.Apellido);
-      writeln ('EDAD ',nuevoRegistro.Edad);
-      writeln ('PESO ',nuevoRegistro.Peso);
-      writeln ('ELIMINADO ',nuevoRegistro.Eliminado);
-      writeln;
 
      write (baseDatos, nuevoRegistro);
 
@@ -457,12 +451,13 @@ function NuevoReg (documentoPersona, nombrePersona, apellidoPersona:string; idPe
 
 begin
 
+  //registroPersonaAux;
   registroPersona.Documento:=objCom.listaParametros.argumentos[1].datoString;
   registroPersona.Nombre:=objCom.listaParametros.argumentos[2].datoString;
   registroPersona.Apellido:=objCom.listaParametros.argumentos[3].datoString;
   registroPersona.Edad:=objCom.listaParametros.argumentos[4].datoNumerico;
   registroPersona.Peso:=objCom.listaParametros.argumentos[5].datoNumerico;
-  registroPersona.Id:= registroPersona.Id + 1;
+  registroPersona.Id:= registroPersonaAux.Id + 1;
   registroPersona.Eliminado:=false;
 
 
@@ -622,11 +617,16 @@ begin
   while not eof (archivoDataBase) do begin
     read (archivoDataBase, personaEliminada);
 
-    personaEliminada.Eliminado:=true;
+
+    reset (archivoDataBase); {abrimos el archivo}
+    seek (archivoDataBase, (personaEliminada.Id) -1);
+    read (archivoDataBase, personaEliminada);
+    personaEliminada.eliminado:=true;
+    seek (archivoDataBase, (personaEliminada.Id) -1);
+    write (archivoDataBase, personaEliminada);
 
     {stringFilaRegistro da el formato de columnas para imprimir por pantalla.}
     writeln (stringFilaRegistro(personaEliminada));
-    writeln ('REGISTRO ',personaEliminada.Nombre,' ', 'ELIMINADO ',personaEliminada.Eliminado);
     writeln;
     result:= personaEliminada;
   end;
@@ -721,7 +721,6 @@ repeat
 
 
      NUEVO:begin
-       reset (archivoDataBase); {abrimos el archivo}
 
 
          {Comprueba el nº de parametros. Se asocia la función a la variable booleana pruebaParametros.
@@ -758,18 +757,19 @@ repeat
          Si esto es false etonces lanza mensaje de error.
          Con el continue sale del bucle}
          pruebaDocumento:=existeDocumento(registroPersonaAux);
-         if (pruebaDocumento=false) then begin
-            if (comprobarRegEliminados(registroPersonaAux)=true) then begin
-                 writeln ('Ya existe este numero de documento >> [',registroPersona.Documento,' ',registroPersona.Nombre,' ',registroPersona.Apellido,']');
-                 writeln;
-                 continue;
-            end;
-          end;
+         if ((pruebaDocumento=true) and comprobarRegEliminados(registroPersona)=false) then begin
+           registroPersonaAux:= validDocumento(registroPersona);
+            if (pruebaDocumento=true) then begin
+               writeln ('Ya existe este numero de documento >> [',registroPersonaAux.Documento,' ',registroPersonaAux.Nombre,' ',registroPersonaAux.Apellido,']');
+               writeln;
+               continue;
+             end;
+         end;
 
 
 
         {Si todas las validaciones se cumplen entones llama a la función NuevoReg que es la que permitirá guardar el registro.}
-        if (pruebaParametros=true) and (pruebaEdad=true) and (PruebaPeso=true) and (pruebaDocumento=FALSE) then begin
+        if (pruebaParametros=true) and (pruebaEdad=true) and (PruebaPeso=true) and (ExisteDocumentoYEliminado(registroPersonaAux)=false) then begin
           NuevoReg (registroPersona.Documento, registroPersona.Nombre, registroPersona.Apellido, registroPersona.Id, registroPersona.edad, registroPersona.Peso,registroPersona.Eliminado);
           continue;
         end;
@@ -927,6 +927,13 @@ repeat
          writeln;
          continue;
        end;
+
+       if (compareEliminarT) then begin
+         eliminarTodo();
+         writeln;
+         continue;
+       end;
+
 
        {validación ELIMINAR -D: recibe un nº de documento y ese documento existe.}
       if ((ObjCom.listaParametros.cantidad>0) and (ObjCom.listaParametros.cantidad<=2)) and ((compareEliminarD) and (existeDocumentoAEliminar(registroPersona))) then begin
