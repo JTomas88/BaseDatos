@@ -65,7 +65,7 @@ var entradaEstandar, documentoAux, valorEliminarD, valorEliminarT: String;
     objCom: TComando;
     archivoDataBase, archivoTempBase: TBaseDeDatos;
     registroPersona, registroPersonaAux, personaLeida: TRegistroPersona;
-    i, cantidadRegEliminados: int64;
+    i, cantidadRegEliminados, cantidadRegActivos: integer;
     pruebaParametros, pruebaEdad, pruebaPeso, pruebaDocumento, pruebaEliminado,
       ElDocExiste,pruebaDoc,compareEliminarT, compareEliminarD, primerRegistro: boolean;
 {____________________________________________________________________________}
@@ -427,11 +427,11 @@ begin
 
 
   reset (archivoDataBase); {abrimos el archivo}
-  seek (archivoDataBase, (personaAEliminar.Id) -1);
-  read (baseDatos, personaAEliminar);
+  seek (archivoDataBase, (personaAEliminar.Id)-1);
+  read (archivoDataBase, personaAEliminar);
   personaAEliminar.eliminado:=true;
-  seek (archivoDataBase, (personaAEliminar.Id) -1);
-  write (baseDatos, personaAEliminar);
+  seek (archivoDataBase, (personaAEliminar.Id)-1);
+  write (archivoDataBase, personaAEliminar);
 
 end;
 {____________________________________________________________________________}
@@ -612,7 +612,7 @@ function eliminarTodo(): TRegistroPersona;
 begin
 
   reset (archivoDataBase);
-  writeln (stringEncabezado());
+
 
   while not eof (archivoDataBase) do begin
     read (archivoDataBase, personaEliminada);
@@ -625,10 +625,7 @@ begin
     seek (archivoDataBase, (personaEliminada.Id) -1);
     write (archivoDataBase, personaEliminada);
 
-    {stringFilaRegistro da el formato de columnas para imprimir por pantalla.}
-    writeln (stringFilaRegistro(personaEliminada));
-    //writeln ('REGISTRO ',personaEliminada.Nombre,' ', 'ELIMINADO ',personaEliminada.Eliminado);
-    writeln;
+
     result:= personaEliminada;
   end;
 
@@ -636,43 +633,85 @@ begin
 end;
 {____________________________________________________________________________}
 
-function contarActivos(): byte;
+function contarActivos( var baseDatos:TBaseDeDatos): byte;
 
-var i, cantidadRegActivos: byte;
+var i, cantidadRegistrosActivos: byte;
+  personaLeida:TRegistroPersona;
 
 begin
-  cantidadRegActivos:=0;
-  reset (archivoDataBase);
+  cantidadRegistrosActivos:=0;
+  reset (baseDatos);
 
-  while not eof (archivoDataBase) do begin
-    read (archivoDataBase, registroPersona);
-    if registroPersona.Eliminado=false then begin
-      cantidadRegActivos:=cantidadRegActivos+1;
-      result:=cantidadRegActivos;
+  while not eof (baseDatos) do begin
+    read (baseDatos, personaLeida);
+    if personaLeida.Eliminado=false then begin
+      cantidadRegistrosActivos:=cantidadRegistrosActivos+1;
     end;
   end;
+  result:=cantidadRegistrosActivos;
 
 end;
 
 
-function contarEliminados(): byte;
+function contarEliminados(var baseDatos:TBaseDeDatos): byte;
 
-var i, cantidadRegEliminados: byte;
+var i, cantidadRegistrosEliminados: byte;
 
 begin
-  cantidadRegEliminados:=0;
-  reset (archivoDataBase);
+  cantidadRegistrosEliminados:=0;
+  reset (baseDatos);
 
-  while not eof (archivoDataBase) do begin
-    read (archivoDataBase, registroPersona);
+  while not eof (baseDatos) do begin
+    read (baseDatos, registroPersona);
     if registroPersona.Eliminado=true then begin
-      cantidadRegEliminados:=cantidadRegEliminados+1;
-      result:=cantidadRegEliminados;
+      cantidadRegistrosEliminados:=cantidadRegistrosEliminados+1;
     end;
   end;
+  result:=cantidadRegistrosEliminados;
 
 end;
 
+function optimizacion (var baseDatos:TBaseDeDatos):boolean;
+
+var archivoTemporal: TBaseDeDatos;
+    i: byte;
+    personaLeida: TRegistroPersona;
+
+begin
+
+  AssignFile (archivoTemporal,BASEDEDATOS_NOMBRE_TEMPORAL);
+  rewrite (archivoTemporal);
+  seek (baseDatos,0);
+
+  reset (baseDatos);
+  while not eof (baseDatos) do begin
+    read (baseDatos, personaLeida);
+    if personaLeida.Eliminado=false then begin
+      //seek (baseDatos);
+      //read (baseDatos, personaLeida);
+      write (archivoTemporal, personaLeida);
+    end;
+  end;
+
+
+  Close (baseDatos);
+  Close (archivoTemporal);
+
+  if not DeleteFile (BASEDEDATOS_NOMBRE_REAL) then begin
+    result:=false;
+    AssignFile (baseDatos, BASEDEDATOS_NOMBRE_REAL);
+    reset (baseDatos);
+    DeleteFile (BASEDEDATOS_NOMBRE_TEMPORAL);
+  end else begin
+    RenameFile (BASEDEDATOS_NOMBRE_TEMPORAL,BASEDEDATOS_NOMBRE_REAL);
+    AssignFile (baseDatos, BASEDEDATOS_NOMBRE_REAL);
+    reset (baseDatos);
+   end;
+
+  result:=true;
+
+
+end;
 
 (*============================================================================*)
 (****************************** BLOQUE PRINCIPAL ******************************)
@@ -702,7 +741,11 @@ begin
   {------------------------------------------------------------------------}
 
 
+
 repeat
+
+  cantidadRegActivos:=0;
+  cantidadRegEliminados:=0;
 
   {PROMPT + Lectura comando + lectura datos}
   entradaPrompt();
@@ -842,7 +885,7 @@ repeat
        {Verifica que el parametro EDAD reciba un dato numérico}
        pruebaEdad:=EdadNumero(objCom.listaParametros.argumentos[4].datoNumerico);
        if (pruebaEdad=false) then begin
-         writeln ('**** ERROR CASE ****** El parametro edad debe ser numerico******');
+         writeln ('El parametro EDAD debe ser numerico******');
          writeln;
          continue;
        end;
@@ -850,14 +893,14 @@ repeat
        {Verifica que el parametro PESO reciba un dato numérico}
        pruebaPeso:=PesoNumero (objCom.listaParametros.argumentos[5].datoNumerico);
        if (pruebaPeso=false) then begin
-         writeln ('***ERROR CASE*****El parametro peso debe ser numerico******');
+         writeln ('El parametro PESO debe ser numerico******');
          writeln;
          continue;
        end;
 
        {Verifica si el documento que vamos a eliminar existe}
        if not existeDocumento (registroPersonaAux) then begin
-         writeln ('El documento a modificar no existe');
+         writeln ('El documento a modificar NO EXISTE');
          writeln;
          continue;
        end;
@@ -957,12 +1000,49 @@ repeat
         continue;
        end;
 
-          writeln ('Registros Totales: ',FileSize(archivoDataBase),' / Cantidad de registros activos: ',contarActivos(),
-                  ' / Cantidad de registros eliminados: ',contarEliminados());
+       if FileSize(archivoDataBase)=0 then begin
+           cantidadRegEliminados:=0;
+           cantidadRegActivos:=0;
+       end else if FileSize(archivoDataBase)<>0 then begin
+           cantidadRegEliminados:=contarEliminados(archivoDataBase);
+           cantidadRegActivos:=contarActivos(archivoDataBase);
+       end;
+
+
+
+
+          writeln ('Registros Totales: ',FileSize(archivoDataBase),' / Cantidad de registros activos: ',contarActivos(archivoDataBase),
+                  ' / Cantidad de registros eliminados: ',contarEliminados(archivoDataBase));
+          writeln;
+
+         ;
 
 
      end; {fin comando "ESTADOSIS"}
 {--------------------------------------------------------------------------------------------------------------------------------------------}
+
+
+      {No controla los parámetros recibidos.
+      Crea un archivo temporal nuevo.
+      Se copian al archivo temporal los registros que no estén eliminados (en false)
+      Se borra el archivo original.
+      Se renombra el nuevo archivo con el nombre que tenía el anterior}
+      OPTIMIZAR:begin
+
+        if (optimizacion(archivoDataBase)=true) then begin
+         writeln ('Optimimación exitosa');
+         writeln;
+         continue;
+        end else begin
+          writeln ('No se ha podido optimizar la base de datos');
+          writeln;
+          continue;
+        end;
+
+      end;{Fin Case Optimizar}
+{--------------------------------------------------------------------------------------------------------------------------------------------}
+      else
+        writeln ('me comes los huevos');
 
 
   end; {FIN CASE PRINCIPAL}
